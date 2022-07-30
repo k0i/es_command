@@ -1,0 +1,17 @@
+[package]
+name = "es"
+version = "0.1.0"
+edition = "2021"
+authors = ["Sojiro Koyama <koyama10032009@outlook.jp>"]
+description = """Wrapper command for evans[ktr0731/evans]. 
+Receive multiple(or single)json files and send bulk requests.
+In the json files you can use variables start with `$$`.
+"""
+
+[dependencies]
+anyhow = "1.0.58"
+seahorse = "*"
+serde = { version = "1.0.140", features = ["derive"] }
+serde_json = "1.0.82"
+tokio = { version = "1.20.1", features = ["full"] }
+
