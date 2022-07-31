@@ -9,6 +9,7 @@ import (
 	"github.com/rotemtam/ent-grpc-example/ent"
 	"github.com/rotemtam/ent-grpc-example/ent/proto/entpb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -29,12 +30,12 @@ func main() {
 
 	// Create a new gRPC server (you can wire multiple services to a single server).
 	server := grpc.NewServer()
-
+	reflection.Register(server)
 	// Register the User service with the server.
 	entpb.RegisterUserServiceServer(server, svc)
 
 	// Open port 5000 for listening to traffic.
-	lis, err := net.Listen("tcp", ":5000")
+	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		log.Fatalf("failed listening: %s", err)
 	}
