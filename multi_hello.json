@@ -1,0 +1,17 @@
+[
+        {
+                "name":"firstGreet",
+                "method":"helloworld.Greeter.SayHello",
+                "body":
+                {
+                        "name":"test"
+                }
+        },
+        {
+                "method":"helloworld.Greeter.SayHello",
+                "body":
+                {
+                        "name":"$$firstGreet.message"
+                }
+        }
+]
