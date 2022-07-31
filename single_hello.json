@@ -1,9 +1,0 @@
-[
-        {
-                "method":"helloworld.Greeter.SayHello",
-                "body":
-                {
-                        "name":"my name is k0i"
-                }
-        }
-]
