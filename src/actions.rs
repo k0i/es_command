@@ -24,10 +24,7 @@ pub fn action_evans(c: &seahorse::Context) {
         handles.push(handle);
     });
     for h in handles {
-        let err_output = h.join().expect("Something went wrong");
-        if !err_output.is_empty() {
-            println!("Errors:{:?}", err_output);
-        }
+        h.join().expect("Something went wrong");
     }
 }
 
@@ -91,8 +88,10 @@ fn exec(req: Request, chain: &mut RequestChainAndRes) -> Result<&HashMap<String,
         .with_context(|| "Failed to execute evans.")?;
     if !p.stderr.is_empty() {
         panic!(
-            "Failed to execute evans: {:?}",
-            from_utf8(&p.stderr).unwrap()
+            "Failed to execute evans: {:?}\nReq:{:?}\nBody:{:?}",
+            from_utf8(&p.stderr).unwrap(),
+            req.method,
+            body
         )
     }
     let s: ResponseJson = serde_json::from_str(

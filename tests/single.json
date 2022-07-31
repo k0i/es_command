@@ -1,0 +1,12 @@
+        {
+                "method":"entpb.UserService.Create",
+                "body":
+                {
+                        "user":{
+                                "id":1,
+                                "name":"testUser",
+                                "email_address":"test@test.com",
+                                "alias":"testAlias"
+                        }
+                }
+        }
