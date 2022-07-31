@@ -9,8 +9,16 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CARGO_TERM_COLOR: always
-      BINARY_NAME: rust-test1
+      BINARY_NAME: es
     steps:
+    - uses: actions/checkout@v2
+    - name: Set build version
+      id: version
+      shell: bash
+      run: |
+        VERSION="$(cat Cargo.toml | grep 'version =' -m 1 | sed 's@version =@@' | xargs)"
+        echo "RELEASE_VERSION=$VERSION" >> $GITHUB_ENV
+        echo "::notice::publish build version $VERSION"
     - uses: actions/checkout@v2
     - name: Build-musl macOS x86
       uses: Shogan/rust-musl-action@v1.0.2
@@ -20,14 +28,6 @@ jobs:
       uses: Shogan/rust-musl-action@v1.0.2
       with:
         args: cargo build --target x86_64-unknown-linux-musl --release
-    - uses: actions/checkout@v2
-    - name: Set build version
-      id: version
-      shell: bash
-      run: |
-        VERSION="$(cat Cargo.toml | grep 'version =' -m 1 | sed 's@version =@@' | xargs)"
-        echo "RELEASE_VERSION=$VERSION" >> $GITHUB_ENV
-        echo "::notice::publish build version $VERSION"
     - name: Upload macOS x86 binary to release
       uses: Spikatrix/upload-release-action@b713c4b73f0a8ddda515820c124efc6538685492
       with:
