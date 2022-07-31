@@ -5,6 +5,7 @@ use crate::{
 use anyhow::{bail, Context, Result};
 use serde_json::Value;
 use std::{
+    collections::HashMap,
     path::Path,
     process::{self, Command, Stdio},
     str::from_utf8,
@@ -23,50 +24,96 @@ pub fn action_evans(c: &seahorse::Context) {
         handles.push(handle);
     });
     for h in handles {
-        let output = h.join().unwrap();
-        println!("output: {:?}", output.0);
-        println!("errors: {:?}", output.1);
+        let err_output = h.join().expect("Something went wrong");
+        if !err_output.is_empty() {
+            println!("Errors:{:?}", err_output);
+        }
     }
 }
 
-fn process<P: AsRef<Path>>(path: P) -> Result<(Vec<Vec<String>>, Vec<anyhow::Error>)>
+fn process<P: AsRef<Path>>(path: P) -> Result<Vec<anyhow::Error>>
 where
     P: std::fmt::Debug,
 {
     let reqs = open_file(path)?;
     let mut chain = RequestChainAndRes::new();
-    let mut logs = vec![];
     let mut errs = vec![];
-    reqs.into_iter().for_each(|r| match exec(r, &mut chain) {
-        Ok(res) => logs.push(res),
-        Err(e) => errs.push(e),
-    });
-    Ok((logs, errs))
+    let len = reqs.len();
+    reqs.into_iter()
+        .enumerate()
+        .for_each(|(i, r)| match exec(r, &mut chain) {
+            Ok(res) => {
+                if i + 1 == len {
+                    for (k, v) in res.iter() {
+                        println!("\x1b[32mName\x1b[m: \x1b[35m{}\x1b[m", k);
+                        println!();
+                        println!("\x1b[34mResponse\x1b[m: \x1b[36m{}\x1b[m", v);
+                        println!();
+                    }
+                }
+            }
+            Err(e) => errs.push(e),
+        });
+    Ok(errs)
 }
 
-fn exec(req: Request, chain: &mut RequestChainAndRes) -> Result<Vec<String>> {
+fn exec(req: Request, chain: &mut RequestChainAndRes) -> Result<&HashMap<String, Value>> {
     let body = refine_body(req.body, chain);
-    let bd = Command::new("echo")
-        .arg(body.to_string())
-        .stdout(Stdio::piped())
-        .spawn()
-        .with_context(|| format!("Failed to echo request body: {}", body))?
-        .stdout;
+    let bd = if cfg!(target_os = "windows") {
+        Command::new("cmd")
+            .args(["/C", "echo", &body.to_string()])
+            .stdout(Stdio::piped())
+            .spawn()
+            .with_context(|| format!("Failed to echo request body: {}", body))?
+            .stdout
+    } else {
+        Command::new("echo")
+            .arg(body.to_string())
+            .stdout(Stdio::piped())
+            .spawn()
+            .with_context(|| format!("Failed to echo request body: {}", body))?
+            .stdout
+    };
     if bd.is_none() {
-        bail!("stdout is empty: something went wrong!")
+        bail!("Stdout is empty: something went wrong.")
     }
     let p = Command::new("evans")
-        .args(["-r", "cli", "call", req.method.as_str()])
+        .args([
+            "--host",
+            "localhost",
+            "-r",
+            "cli",
+            "call",
+            req.method.as_str(),
+        ])
         .stdin(bd.unwrap())
-        .output();
-    let s: ResponseJson = serde_json::from_str(from_utf8(&p.unwrap().stdout).unwrap()).unwrap();
+        .output()
+        .with_context(|| "Failed to execute evans.")?;
+    if !p.stderr.is_empty() {
+        panic!(
+            "Failed to execute evans: {:?}",
+            from_utf8(&p.stderr).unwrap()
+        )
+    }
+    let s: ResponseJson = serde_json::from_str(
+        from_utf8(&p.stdout).with_context(|| "Failed to convert response to string.")?,
+    )
+    .with_context(|| "Failed to parse response strings to json.")?;
     if req.name.is_some() {
         chain.res.insert(req.name.unwrap(), s.clone());
-    } else {
+    } else if chain.res.get(&req.method).is_none() {
         chain.res.insert(req.method, s.clone());
+    } else {
+        let mut dedup = 2;
+        while chain.res.get(&format!("{}{}", req.method, dedup)).is_some() {
+            dedup += 1;
+        }
+        chain
+            .res
+            .insert(format!("{}{}", req.method, dedup), s.clone());
     }
     chain.log.push(s.to_string());
-    Ok(chain.log.clone())
+    Ok(&chain.res)
 }
 
 fn refine_body(body: Value, chain: &RequestChainAndRes) -> Value {
@@ -92,21 +139,44 @@ fn resolve(s: String, chain: &RequestChainAndRes) -> Value {
         Some("$$") => {
             let variables: Vec<_> = s.get(2..).unwrap().split('.').collect();
             if variables.len() <= 2 {
-                let mut res_messages = chain.res.get(variables[0]).unwrap().clone();
-                for key in &variables {
-                    let temp = res_messages.get(&key.to_string()).unwrap().clone();
+                let mut res_messages = chain
+                    .res
+                    .get(variables[0])
+                    .unwrap_or_else(|| panic!("Failed to fild request by Name : {}", variables[0]))
+                    .clone();
+                for key in variables.iter().skip(1) {
+                    let temp = res_messages
+                        .get(&key.to_string())
+                        .unwrap_or_else(|| panic!("Failed to find key : {}", key))
+                        .clone();
                     res_messages = temp;
                 }
                 res_messages
             } else {
-                let mut res_messages = chain.res.get(variables[0]).unwrap().clone();
+                let mut res_messages = chain
+                    .res
+                    .get(variables[0])
+                    .unwrap_or_else(|| {
+                        panic!("Failed to get variable from response: {}", variables[0])
+                    })
+                    .clone();
                 for key in variables.into_iter().skip(1) {
                     match res_messages {
                         Value::Object(obj) => {
-                            res_messages = obj.get(key).unwrap().clone();
+                            res_messages = obj
+                                .get(key)
+                                .unwrap_or_else(|| panic!("Failed to get key: {}", key))
+                                .clone();
                         }
                         Value::Array(arr) => {
-                            res_messages = arr[key.to_string().parse::<usize>().unwrap()].clone();
+                            res_messages =
+                                arr[key.to_string().parse::<usize>().unwrap_or_else(|e| {
+                                    panic!(
+                                        "Failed to access array: expected index but got: {},{}",
+                                        key, e
+                                    )
+                                })]
+                                .clone();
                         }
                         _ => {}
                     };
