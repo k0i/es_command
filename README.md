@@ -16,6 +16,26 @@ es 'multiple json file path'
 
 - #### It supports only UnaryRequest and can be used with only reflection at present.
 
+# Installation
+
+## [Github Releases](https://github.com/k0i/es_command/releases)
+### linux
+
+```shell
+wget https://github.com/k0i/es_command/releases/download/#{version}/es-linux-musl-x86 -O es
+```
+
+### Mac OS x
+
+```shell
+curl https://github.com/k0i/es_command/releases/download/#{version}/es-macos-x86 > es
+```
+
+> **Note**
+
+Please place es file within a directory specified by the PATH environment variable.
+
+
 # Usage
 
 ## Create a json file.
