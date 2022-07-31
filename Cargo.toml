@@ -1,6 +1,6 @@
 [package]
 name = "es"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Sojiro Koyama <koyama10032009@outlook.jp>"]
 description = """Wrapper command for evans[ktr0731/evans]. 
