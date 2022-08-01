@@ -24,7 +24,9 @@ pub fn action_evans(c: &seahorse::Context) {
         handles.push(handle);
     });
     for h in handles {
-        h.join().expect("Something went wrong");
+        if let Err(e) = h.join() {
+            eprintln!("{:?}", e);
+        };
     }
 }
 
@@ -87,17 +89,19 @@ fn exec(req: Request, chain: &mut RequestChainAndRes) -> Result<&HashMap<String,
         .output()
         .with_context(|| "Failed to execute evans.")?;
     if !p.stderr.is_empty() {
-        panic!(
-            "Failed to execute evans: {:?}\nReq:{:?}\nBody:{:?}",
+        eprintln!(
+            "\x1b[31mFailed \x1b[mto execute Evans:\n{:?}\nReq:{:?}\nBody:{:?}",
             from_utf8(&p.stderr).unwrap(),
             req.method,
-            body
-        )
+            body.to_string()
+        );
+        process::exit(1);
     }
     let s: ResponseJson = serde_json::from_str(
-        from_utf8(&p.stdout).with_context(|| "Failed to convert response to string.")?,
+        from_utf8(&p.stdout)
+            .with_context(|| " \x1b[31mFailed \x1b[mto convert response to string.")?,
     )
-    .with_context(|| "Failed to parse response strings to json.")?;
+    .with_context(|| "\x1b[31mFailed \x1b[mto parse response strings to json.")?;
     if req.name.is_some() {
         chain.res.insert(req.name.unwrap(), s.clone());
     } else if chain.res.get(&req.method).is_none() {
@@ -141,12 +145,21 @@ fn resolve(s: String, chain: &RequestChainAndRes) -> Value {
                 let mut res_messages = chain
                     .res
                     .get(variables[0])
-                    .unwrap_or_else(|| panic!("Failed to fild request by Name : {}", variables[0]))
+                    .unwrap_or_else(|| {
+                        eprintln!(
+                            "\x1b[31mFailed \x1b[mto fild request by Name : {}",
+                            variables[0]
+                        );
+                        process::exit(1);
+                    })
                     .clone();
                 for key in variables.iter().skip(1) {
                     let temp = res_messages
                         .get(&key.to_string())
-                        .unwrap_or_else(|| panic!("Failed to find key : {}", key))
+                        .unwrap_or_else(|| {
+                            eprintln!("\x1b[31mFailed \x1b[mto find key : {}", key);
+                            process::exit(1);
+                        })
                         .clone();
                     res_messages = temp;
                 }
@@ -156,7 +169,11 @@ fn resolve(s: String, chain: &RequestChainAndRes) -> Value {
                     .res
                     .get(variables[0])
                     .unwrap_or_else(|| {
-                        panic!("Failed to get variable from response: {}", variables[0])
+                        eprintln!(
+                            "\x1b[31mFailed \x1b[mto get variable from response: {}",
+                            variables[0]
+                        );
+                        process::exit(1);
                     })
                     .clone();
                 for key in variables.into_iter().skip(1) {
@@ -164,16 +181,20 @@ fn resolve(s: String, chain: &RequestChainAndRes) -> Value {
                         Value::Object(obj) => {
                             res_messages = obj
                                 .get(key)
-                                .unwrap_or_else(|| panic!("Failed to get key: {}", key))
+                                .unwrap_or_else(|| {
+                                    eprintln!("\x1b[31mFailed \x1b[mto get key: {}", key);
+                                    process::exit(1);
+                                })
                                 .clone();
                         }
                         Value::Array(arr) => {
                             res_messages =
                                 arr[key.to_string().parse::<usize>().unwrap_or_else(|e| {
-                                    panic!(
-                                        "Failed to access array: expected index but got: {},{}",
+                                    eprintln!(
+                                        "\x1b[31mFailed \x1b[mto access array: expected index but got: {},{}",
                                         key, e
-                                    )
+                                    );
+                                    process::exit(1);
                                 })]
                                 .clone();
                         }
