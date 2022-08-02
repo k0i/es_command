@@ -12,7 +12,7 @@ pub struct Request {
 #[derive(Debug)]
 pub struct RequestChainAndRes {
     pub res: HashMap<String, ResponseJson>,
-    pub log: Vec<String>,
+    pub log: Vec<(String, Value)>,
 }
 
 impl RequestChainAndRes {

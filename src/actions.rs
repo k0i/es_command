@@ -5,7 +5,6 @@ use crate::{
 use anyhow::{bail, Context, Result};
 use serde_json::Value;
 use std::{
-    collections::HashMap,
     path::Path,
     process::{self, Command, Stdio},
     str::from_utf8,
@@ -30,7 +29,7 @@ pub fn action_evans(c: &seahorse::Context) {
     }
 }
 
-fn process<P: AsRef<Path>>(path: P) -> Result<Vec<anyhow::Error>>
+fn process<P: AsRef<Path>>(path: P) -> Result<()>
 where
     P: std::fmt::Debug,
 {
@@ -53,10 +52,13 @@ where
             }
             Err(e) => errs.push(e),
         });
-    Ok(errs)
+    if !errs.is_empty() {
+        errs.into_iter().for_each(|e| error!("{}", e))
+    }
+    Ok(())
 }
 
-fn exec(req: Request, chain: &mut RequestChainAndRes) -> Result<&HashMap<String, Value>> {
+fn exec(req: Request, chain: &mut RequestChainAndRes) -> Result<&Vec<(String, Value)>> {
     let body = refine_body(req.body, chain);
     let bd = if cfg!(target_os = "windows") {
         Command::new("cmd")
@@ -87,11 +89,11 @@ fn exec(req: Request, chain: &mut RequestChainAndRes) -> Result<&HashMap<String,
         ])
         .stdin(bd.unwrap())
         .output()
-        .with_context(|| "Failed to execute evans.")?;
+        .with_context(|| "Failed to execute Evans.")?;
     if !p.stderr.is_empty() {
         error!(
             "
-            \x1b[31mFailed to execute Evans: \x1b[m
+            \x1b[31mFailed to execute Evans. All following requests were canceled: \x1b[m
             {:?}
 
             Req:{:?}
@@ -109,9 +111,11 @@ fn exec(req: Request, chain: &mut RequestChainAndRes) -> Result<&HashMap<String,
     )
     .with_context(|| "\x1b[31mFailed \x1b[mto parse response strings to json.")?;
     if req.name.is_some() {
-        chain.res.insert(req.name.unwrap(), s.clone());
+        chain.res.insert(req.name.clone().unwrap(), s.clone());
+        chain.log.push((req.name.unwrap(), s));
     } else if chain.res.get(&req.method).is_none() {
-        chain.res.insert(req.method, s.clone());
+        chain.res.insert(req.method.clone(), s.clone());
+        chain.log.push((req.method, s));
     } else {
         let mut dedup = 2;
         while chain.res.get(&format!("{}{}", req.method, dedup)).is_some() {
@@ -120,9 +124,9 @@ fn exec(req: Request, chain: &mut RequestChainAndRes) -> Result<&HashMap<String,
         chain
             .res
             .insert(format!("{}{}", req.method, dedup), s.clone());
+        chain.log.push((format!("{}{}", req.method, dedup), s));
     }
-    chain.log.push(s.to_string());
-    Ok(&chain.res)
+    Ok(&chain.log)
 }
 
 fn refine_body(body: Value, chain: &RequestChainAndRes) -> Value {
