@@ -76,7 +76,7 @@ fn exec(req: Request, chain: &mut RequestChainAndRes) -> Result<&Vec<(String, Va
             .stdout
     };
     if bd.is_none() {
-        bail!("Stdout is empty: something went wrong.")
+        bail!("Stdout is empty: something went wrong.");
     }
     let p = Command::new("evans")
         .args([
@@ -158,8 +158,10 @@ fn resolve(s: String, chain: &RequestChainAndRes) -> Value {
                     .unwrap_or_else(|| {
                         error!(
                             "
-                            \x1b[31mFailed \x1b[mto fild request by Name : {}",
-                            variables[0]
+                            \x1b[31mFailed \x1b[mto find request by Name : {}
+                            {:?} 
+                            ",
+                            variables[0], chain.res
                         );
                         process::exit(1);
                     })
@@ -170,8 +172,10 @@ fn resolve(s: String, chain: &RequestChainAndRes) -> Value {
                         .unwrap_or_else(|| {
                             error!(
                                 "
-                                \x1b[31mFailed \x1b[mto find key : {}",
-                                key
+                                \x1b[31mFailed \x1b[mto find key : {}
+message: {}
+                                ",
+                                key, res_messages
                             );
                             process::exit(1);
                         })
@@ -186,8 +190,10 @@ fn resolve(s: String, chain: &RequestChainAndRes) -> Value {
                     .unwrap_or_else(|| {
                         error!(
                             "
-                            \x1b[31mFailed \x1b[mto get variable from response: {}",
-                            variables[0]
+                            \x1b[31mFailed \x1b[mto get variable from response: {},
+response: {:?}
+                            ",
+                            variables[0], chain.res
                         );
                         process::exit(1);
                     })
@@ -200,8 +206,10 @@ fn resolve(s: String, chain: &RequestChainAndRes) -> Value {
                                 .unwrap_or_else(|| {
                                     error!(
                                         "
-                                        \x1b[31mFailed \x1b[mto get key: {}",
-                                        key
+                                        \x1b[31mFailed \x1b[mto get key: {}
+message: {:?}
+                                        ",
+                                        key, obj
                                     );
                                     process::exit(1);
                                 })

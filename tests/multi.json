@@ -35,5 +35,41 @@
                 {
                                 "id":"$$Create.id"
                 }
+        },{
+                "name":"Create2",
+                "method":"entpb.UserService.Create",
+                "body":
+                {
+                        "user":{
+                                "name":"testUser3",
+                                "email_address":"test3@test.com",
+                                "alias":"test3Alias"
+                        }
+                }
+        },
+        {
+                "method":"entpb.UserService.Get",
+                "body":
+                {
+                                "id":"$$Create2.id"
+                }
+        },
+        {
+                "name":"Update2",
+                "method":"entpb.UserService.Update",
+                "body":
+                {
+                        "user":{
+                                "id":"$$Create2.id",
+                                "name":"$$Create2.alias"
+                        }
+                }
+        },
+        {
+                "method":"entpb.UserService.Delete",
+                "body":
+                {
+                                "id":"$$Create2.id"
+                }
         }
 ]
