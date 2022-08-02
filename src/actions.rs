@@ -17,7 +17,7 @@ pub fn action_evans(c: &seahorse::Context) {
     c.args.clone().into_iter().for_each(|s| {
         let handle = thread::spawn(move || {
             process(&s).unwrap_or_else(|e| {
-                eprintln!("Error: {}", e);
+                error!("{}", e);
                 process::exit(1);
             })
         });
@@ -25,7 +25,7 @@ pub fn action_evans(c: &seahorse::Context) {
     });
     for h in handles {
         if let Err(e) = h.join() {
-            eprintln!("{:?}", e);
+            error!("{:?}", e);
         };
     }
 }
@@ -89,8 +89,14 @@ fn exec(req: Request, chain: &mut RequestChainAndRes) -> Result<&HashMap<String,
         .output()
         .with_context(|| "Failed to execute evans.")?;
     if !p.stderr.is_empty() {
-        eprintln!(
-            "\x1b[31mFailed \x1b[mto execute Evans:\n{:?}\nReq:{:?}\nBody:{:?}",
+        error!(
+            "
+            \x1b[31mFailed to execute Evans: \x1b[m
+            {:?}
+
+            Req:{:?}
+
+            Body:{:?}",
             from_utf8(&p.stderr).unwrap(),
             req.method,
             body.to_string()
@@ -146,8 +152,9 @@ fn resolve(s: String, chain: &RequestChainAndRes) -> Value {
                     .res
                     .get(variables[0])
                     .unwrap_or_else(|| {
-                        eprintln!(
-                            "\x1b[31mFailed \x1b[mto fild request by Name : {}",
+                        error!(
+                            "
+                            \x1b[31mFailed \x1b[mto fild request by Name : {}",
                             variables[0]
                         );
                         process::exit(1);
@@ -157,7 +164,11 @@ fn resolve(s: String, chain: &RequestChainAndRes) -> Value {
                     let temp = res_messages
                         .get(&key.to_string())
                         .unwrap_or_else(|| {
-                            eprintln!("\x1b[31mFailed \x1b[mto find key : {}", key);
+                            error!(
+                                "
+                                \x1b[31mFailed \x1b[mto find key : {}",
+                                key
+                            );
                             process::exit(1);
                         })
                         .clone();
@@ -169,8 +180,9 @@ fn resolve(s: String, chain: &RequestChainAndRes) -> Value {
                     .res
                     .get(variables[0])
                     .unwrap_or_else(|| {
-                        eprintln!(
-                            "\x1b[31mFailed \x1b[mto get variable from response: {}",
+                        error!(
+                            "
+                            \x1b[31mFailed \x1b[mto get variable from response: {}",
                             variables[0]
                         );
                         process::exit(1);
@@ -182,7 +194,11 @@ fn resolve(s: String, chain: &RequestChainAndRes) -> Value {
                             res_messages = obj
                                 .get(key)
                                 .unwrap_or_else(|| {
-                                    eprintln!("\x1b[31mFailed \x1b[mto get key: {}", key);
+                                    error!(
+                                        "
+                                        \x1b[31mFailed \x1b[mto get key: {}",
+                                        key
+                                    );
                                     process::exit(1);
                                 })
                                 .clone();
@@ -190,8 +206,12 @@ fn resolve(s: String, chain: &RequestChainAndRes) -> Value {
                         Value::Array(arr) => {
                             res_messages =
                                 arr[key.to_string().parse::<usize>().unwrap_or_else(|e| {
-                                    eprintln!(
-                                        "\x1b[31mFailed \x1b[mto access array: expected index but got: {},{}",
+                                    error!(
+                                        "
+                                        \x1b[31mFailed \x1b[mto access array: 
+                                        expected index but got: 
+                                        {}
+                                        {}",
                                         key, e
                                     );
                                     process::exit(1);

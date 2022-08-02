@@ -6,7 +6,11 @@ use anyhow::Result;
 use seahorse::App;
 use std::env;
 
+#[macro_use]
+extern crate log;
+
 fn main() -> Result<()> {
+    env_logger::init();
     let args: Vec<String> = env::args().collect();
     let app = App::new(env!("CARGO_PKG_NAME"))
         .description(env!("CARGO_PKG_DESCRIPTION"))
